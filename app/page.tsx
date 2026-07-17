@@ -8,7 +8,7 @@ import { StatusBar } from "@/components/StatusBar";
 import { ExportMenu } from "@/components/ExportMenu";
 import { ShareRoom } from "@/components/ShareRoom";
 import { NamePicker } from "@/components/NamePicker";
-import { AiChatSidebar } from "@/components/AiChatSidebar";
+import { RoomChatSidebar } from "@/components/RoomChatSidebar";
 import type { VimEditorHandle } from "@/components/VimEditor";
 import {
   createCollabUser,
@@ -94,15 +94,6 @@ export default function HomePage() {
     setEditingName(true);
   }, []);
 
-  const getDocument = useCallback(
-    () => editorRef.current?.getContent() ?? note,
-    [note],
-  );
-
-  const applyDocumentEdit = useCallback((content: string) => {
-    editorRef.current?.applyAiEdit(content);
-  }, []);
-
   const isSplit = viewMode === "split";
   const ready = hydrated && !!roomId && !!user && !needsName;
   const namePickerOpen = needsName || editingName;
@@ -130,7 +121,7 @@ export default function HomePage() {
                 : "rounded-full border border-hairline bg-canvas px-3 py-1 font-mono text-xs uppercase tracking-[1.2px] text-ink transition-colors hover:border-body-mid"
             }
           >
-            AI
+            Chat
           </button>
           <ViewToggle value={viewMode} onChange={handleViewMode} />
           <ExportMenu note={note} />
@@ -177,12 +168,16 @@ export default function HomePage() {
           ) : null}
         </main>
 
-        <AiChatSidebar
-          open={chatOpen}
-          onClose={() => setChatOpen(false)}
-          getDocument={getDocument}
-          applyDocumentEdit={applyDocumentEdit}
-        />
+        {user ? (
+          <RoomChatSidebar
+            open={chatOpen}
+            onClose={() => setChatOpen(false)}
+            peerCount={peerCount}
+            user={user}
+            editorRef={editorRef}
+            chatReady={ready}
+          />
+        ) : null}
       </div>
 
       <StatusBar

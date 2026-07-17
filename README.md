@@ -36,9 +36,11 @@ npm run tunnel
 
 Open the printed `https://*.trycloudflare.com` URL in two browsers/devices with the same `?room=` — edits and carets sync live.
 
-## AI chat
+## Room chat
 
-Toggle **AI** in the header for a sidebar that can edit the live collaborative note (writes through Yjs).
+Toggle **Chat** in the header for a shared room sidebar (synced via Yjs). Talk normally with collaborators; tag **`@ai`** or **`@vimtex`** in a message to ask the model to edit the note.
+
+Only the peer who sent the `@ai` message calls OpenRouter. The API receives **that instruction plus the current document** — not the rest of the chat history. AI replies and document edits sync to everyone through Yjs.
 
 ### Configure OpenRouter
 
@@ -50,7 +52,7 @@ OPENROUTER_API_KEY=sk-or-v1-...
 
 Restart the server after changing env. The key is used only in the server route `POST /api/chat` and is never sent to the browser.
 
-Models (dropdown in the sidebar):
+Models (dropdown in the chat sidebar, used when `@ai` fires):
 
 - `tencent/hy3:free` (default)
 - `nvidia/nemotron-3-ultra-550b-a55b:free`

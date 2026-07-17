@@ -1,15 +1,13 @@
-import {
-  buildSystemPrompt,
-  type ChatMessage,
-} from "@/lib/ai-chat";
+import { buildSystemPrompt } from "@/lib/ai-chat";
 import { DEFAULT_AI_MODEL, isAiModelId } from "@/lib/ai-models";
 
 export const runtime = "nodejs";
 
 type ChatRequestBody = {
-  messages?: ChatMessage[];
-  model?: string;
+  /** Preferred: single @ai instruction (no chat history). */
+  instruction?: string;
   document?: string;
+  model?: string;
 };
 
 type OpenRouterMessage = {
@@ -36,10 +34,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const messages = body.messages;
-  if (!Array.isArray(messages) || messages.length === 0) {
+  const instruction =
+    typeof body.instruction === "string" ? body.instruction.trim() : "";
+  if (!instruction) {
     return Response.json(
-      { error: "messages must be a non-empty array." },
+      { error: "instruction must be a non-empty string." },
       { status: 400 },
     );
   }
@@ -51,25 +50,9 @@ export async function POST(req: Request) {
 
   const document = typeof body.document === "string" ? body.document : "";
 
-  const history = messages
-    .filter(
-      (m): m is ChatMessage =>
-        !!m &&
-        (m.role === "user" || m.role === "assistant") &&
-        typeof m.content === "string",
-    )
-    .map((m) => ({ role: m.role, content: m.content }));
-
-  if (history.length === 0) {
-    return Response.json(
-      { error: "No valid user/assistant messages." },
-      { status: 400 },
-    );
-  }
-
   const openRouterMessages: OpenRouterMessage[] = [
     { role: "system", content: buildSystemPrompt(document) },
-    ...history,
+    { role: "user", content: instruction },
   ];
 
   let upstream: Response;

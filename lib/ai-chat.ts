@@ -17,7 +17,7 @@ export type ParsedAssistantReply = {
 };
 
 export function buildSystemPrompt(document: string): string {
-  return `You are the VimTex assistant. The user is editing a collaborative Vim + LaTeX scratchpad (markdown prose with TeX math: \\( \\), \\[ \\], or bare TeX lines).
+  return `You are the VimTex assistant. Collaborators tag you in room chat with @ai; you receive only that single instruction plus the current document — no prior chat history.
 
 Current document buffer:
 -----
@@ -27,7 +27,7 @@ ${document}
 Rules:
 - Help with math, LaTeX, and editing the note.
 - Keep chat replies concise.
-- When the user asks you to change the note (add formulas, rewrite, fix TeX, etc.), propose the FULL updated document by ending your reply with exactly:
+- When the instruction asks you to change the note (add formulas, rewrite, fix TeX, etc.), propose the FULL updated document by ending your reply with exactly:
 
 ${DOC_EDIT_START}
 <entire new document content>

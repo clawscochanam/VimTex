@@ -21,6 +21,7 @@ import { WebsocketProvider } from "y-websocket";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import { mathInlineWidgets } from "@/lib/cm-math-widgets";
 import { getCollabWsBase } from "@/lib/collab";
+import type { RoomChatMessage } from "@/lib/room-chat";
 import { STARTER_NOTE } from "@/lib/starter-content";
 import type { CollabStatus, CollabUser, ViewMode, VimMode } from "@/lib/types";
 
@@ -29,8 +30,15 @@ export type VimEditorHandle = {
   getContent: () => string;
   /** Replace the entire Yjs-backed buffer (syncs to all peers). */
   replaceAll: (content: string) => void;
-  /** Alias for replaceAll — used by the AI chat sidebar. */
+  /** Alias for replaceAll — used by room @ai edits. */
   applyAiEdit: (content: string) => void;
+  /** Local Yjs client id, or null before the doc is ready. */
+  getClientId: () => number | null;
+  /** Subscribe to the shared room chat array; returns unsubscribe. */
+  subscribeChat: (
+    cb: (messages: RoomChatMessage[]) => void,
+  ) => () => void;
+  appendChatMessage: (msg: RoomChatMessage) => void;
 };
 
 type VimEditorProps = {
@@ -126,6 +134,7 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
     const undoManagerRef = useRef<Y.UndoManager | null>(null);
     const ydocRef = useRef<Y.Doc | null>(null);
     const ytextRef = useRef<Y.Text | null>(null);
+    const ychatRef = useRef<Y.Array<RoomChatMessage> | null>(null);
     const inlineMathRef = useRef(new Compartment());
     const onChangeRef = useRef(onChange);
     const onVimModeChangeRef = useRef(onVimModeChange);
@@ -151,6 +160,18 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
         }, "ai-edit");
       };
 
+      const readChat = (): RoomChatMessage[] => {
+        const arr = ychatRef.current;
+        if (!arr) return [];
+        return arr.toArray().filter(
+          (m): m is RoomChatMessage =>
+            !!m &&
+            typeof m === "object" &&
+            typeof m.id === "string" &&
+            typeof m.text === "string",
+        );
+      };
+
       return {
         focus: () => {
           viewRef.current?.focus();
@@ -161,6 +182,28 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
           "",
         replaceAll,
         applyAiEdit: replaceAll,
+        getClientId: () => ydocRef.current?.clientID ?? null,
+        subscribeChat: (cb) => {
+          const arr = ychatRef.current;
+          if (!arr) {
+            cb([]);
+            return () => {};
+          }
+          const emit = () => cb(readChat());
+          emit();
+          arr.observe(emit);
+          return () => {
+            arr.unobserve(emit);
+          };
+        },
+        appendChatMessage: (msg) => {
+          const ydoc = ydocRef.current;
+          const arr = ychatRef.current;
+          if (!ydoc || !arr) return;
+          ydoc.transact(() => {
+            arr.push([msg]);
+          }, "chat");
+        },
       };
     });
 
@@ -176,8 +219,10 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
 
       const ydoc = new Y.Doc();
       const ytext = ydoc.getText("codemirror");
+      const ychat = ydoc.getArray<RoomChatMessage>("chat");
       ydocRef.current = ydoc;
       ytextRef.current = ytext;
+      ychatRef.current = ychat;
       const wsBase = getCollabWsBase();
       const provider = new WebsocketProvider(wsBase, roomId, ydoc, {
         connect: true,
@@ -324,6 +369,7 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
         undoManagerRef.current = null;
         ydocRef.current = null;
         ytextRef.current = null;
+        ychatRef.current = null;
       };
       // Only remount when the room changes — awareness updates via the effect above.
       // eslint-disable-next-line react-hooks/exhaustive-deps
