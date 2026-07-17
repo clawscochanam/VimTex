@@ -8,6 +8,7 @@ import { StatusBar } from "@/components/StatusBar";
 import { ExportMenu } from "@/components/ExportMenu";
 import { ShareRoom } from "@/components/ShareRoom";
 import { NamePicker } from "@/components/NamePicker";
+import { AiChatSidebar } from "@/components/AiChatSidebar";
 import type { VimEditorHandle } from "@/components/VimEditor";
 import {
   createCollabUser,
@@ -44,6 +45,7 @@ export default function HomePage() {
   const [user, setUser] = useState<CollabUser | null>(null);
   const [needsName, setNeedsName] = useState(false);
   const [editingName, setEditingName] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const editorRef = useRef<VimEditorHandle>(null);
 
   useEffect(() => {
@@ -92,6 +94,15 @@ export default function HomePage() {
     setEditingName(true);
   }, []);
 
+  const getDocument = useCallback(
+    () => editorRef.current?.getContent() ?? note,
+    [note],
+  );
+
+  const applyDocumentEdit = useCallback((content: string) => {
+    editorRef.current?.applyAiEdit(content);
+  }, []);
+
   const isSplit = viewMode === "split";
   const ready = hydrated && !!roomId && !!user && !needsName;
   const namePickerOpen = needsName || editingName;
@@ -109,49 +120,70 @@ export default function HomePage() {
         </div>
         <div className="flex items-center gap-3">
           {roomId ? <ShareRoom roomId={roomId} /> : null}
+          <button
+            type="button"
+            aria-pressed={chatOpen}
+            onClick={() => setChatOpen((v) => !v)}
+            className={
+              chatOpen
+                ? "rounded-full bg-primary px-3 py-1 font-mono text-xs uppercase tracking-[1.2px] text-on-primary transition-colors"
+                : "rounded-full border border-hairline bg-canvas px-3 py-1 font-mono text-xs uppercase tracking-[1.2px] text-ink transition-colors hover:border-body-mid"
+            }
+          >
+            AI
+          </button>
           <ViewToggle value={viewMode} onChange={handleViewMode} />
           <ExportMenu note={note} />
         </div>
       </header>
 
-      <main
-        className={
-          isSplit
-            ? "flex min-h-0 flex-1 flex-col md:flex-row"
-            : "min-h-0 flex-1"
-        }
-      >
-        <section
+      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+        <main
           className={
             isSplit
-              ? "min-h-0 flex-[0.55] border-b border-hairline md:border-b-0 md:border-r"
-              : "h-full min-h-0"
+              ? "flex min-h-0 min-w-0 flex-1 flex-col md:flex-row"
+              : "min-h-0 min-w-0 flex-1"
           }
         >
-          {ready ? (
-            <VimEditor
-              ref={editorRef}
-              roomId={roomId}
-              user={user}
-              viewMode={viewMode}
-              onChange={setNote}
-              onVimModeChange={setVimMode}
-              onCollabStatus={setCollabStatus}
-              onPeerCount={setPeerCount}
-            />
-          ) : (
-            <div className="flex h-full items-center px-5 font-mono text-xs uppercase tracking-[1.2px] text-mute">
-              {namePickerOpen ? "Enter a display name…" : "Preparing room…"}
-            </div>
-          )}
-        </section>
-
-        {isSplit ? (
-          <section className="min-h-0 flex-[0.45] bg-canvas">
-            <LatexPreview note={note} />
+          <section
+            className={
+              isSplit
+                ? "min-h-0 flex-[0.55] border-b border-hairline md:border-b-0 md:border-r"
+                : "h-full min-h-0"
+            }
+          >
+            {ready ? (
+              <VimEditor
+                ref={editorRef}
+                roomId={roomId}
+                user={user}
+                viewMode={viewMode}
+                onChange={setNote}
+                onVimModeChange={setVimMode}
+                onCollabStatus={setCollabStatus}
+                onPeerCount={setPeerCount}
+              />
+            ) : (
+              <div className="flex h-full items-center px-5 font-mono text-xs uppercase tracking-[1.2px] text-mute">
+                {namePickerOpen ? "Enter a display name…" : "Preparing room…"}
+              </div>
+            )}
           </section>
-        ) : null}
-      </main>
+
+          {isSplit ? (
+            <section className="min-h-0 flex-[0.45] bg-canvas">
+              <LatexPreview note={note} />
+            </section>
+          ) : null}
+        </main>
+
+        <AiChatSidebar
+          open={chatOpen}
+          onClose={() => setChatOpen(false)}
+          getDocument={getDocument}
+          applyDocumentEdit={applyDocumentEdit}
+        />
+      </div>
 
       <StatusBar
         vimMode={vimMode}

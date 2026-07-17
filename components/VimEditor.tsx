@@ -26,6 +26,11 @@ import type { CollabStatus, CollabUser, ViewMode, VimMode } from "@/lib/types";
 
 export type VimEditorHandle = {
   focus: () => void;
+  getContent: () => string;
+  /** Replace the entire Yjs-backed buffer (syncs to all peers). */
+  replaceAll: (content: string) => void;
+  /** Alias for replaceAll — used by the AI chat sidebar. */
+  applyAiEdit: (content: string) => void;
 };
 
 type VimEditorProps = {
@@ -119,6 +124,8 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
     const viewRef = useRef<EditorView | null>(null);
     const providerRef = useRef<WebsocketProvider | null>(null);
     const undoManagerRef = useRef<Y.UndoManager | null>(null);
+    const ydocRef = useRef<Y.Doc | null>(null);
+    const ytextRef = useRef<Y.Text | null>(null);
     const inlineMathRef = useRef(new Compartment());
     const onChangeRef = useRef(onChange);
     const onVimModeChangeRef = useRef(onVimModeChange);
@@ -132,11 +139,30 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
     onPeerCountRef.current = onPeerCount;
     userRef.current = user;
 
-    useImperativeHandle(ref, () => ({
-      focus: () => {
-        viewRef.current?.focus();
-      },
-    }));
+    useImperativeHandle(ref, () => {
+      const replaceAll = (content: string) => {
+        const ydoc = ydocRef.current;
+        const ytext = ytextRef.current;
+        if (!ydoc || !ytext) return;
+        ydoc.transact(() => {
+          const len = ytext.length;
+          if (len > 0) ytext.delete(0, len);
+          if (content.length > 0) ytext.insert(0, content);
+        }, "ai-edit");
+      };
+
+      return {
+        focus: () => {
+          viewRef.current?.focus();
+        },
+        getContent: () =>
+          ytextRef.current?.toString() ??
+          viewRef.current?.state.doc.toString() ??
+          "",
+        replaceAll,
+        applyAiEdit: replaceAll,
+      };
+    });
 
     // Keep awareness in sync when name/color changes without recreating the doc.
     useEffect(() => {
@@ -150,6 +176,8 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
 
       const ydoc = new Y.Doc();
       const ytext = ydoc.getText("codemirror");
+      ydocRef.current = ydoc;
+      ytextRef.current = ytext;
       const wsBase = getCollabWsBase();
       const provider = new WebsocketProvider(wsBase, roomId, ydoc, {
         connect: true,
@@ -294,6 +322,8 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
         viewRef.current = null;
         providerRef.current = null;
         undoManagerRef.current = null;
+        ydocRef.current = null;
+        ytextRef.current = null;
       };
       // Only remount when the room changes — awareness updates via the effect above.
       // eslint-disable-next-line react-hooks/exhaustive-deps
