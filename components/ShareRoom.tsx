@@ -26,7 +26,9 @@ export function ShareRoom({ roomId }: ShareRoomProps) {
       type="button"
       onClick={copyLink}
       className={
-        copied ? "vt-pill vt-pill--solid" : "vt-pill vt-pill--ghost"
+        copied
+          ? "vt-pill vt-pill--solid vt-pill--glow"
+          : "vt-pill vt-pill--ghost"
       }
       title={`Room ${roomId}`}
       aria-live="polite"

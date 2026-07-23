@@ -13,8 +13,20 @@
   --body-mid: #7d8187;
   --mute: #7d8187;
   --hairline: #212327;
+  --hairline-strong: #2e3238;
   --on-primary: #0a0a0a;
   --primary: #ffffff;
+
+  /* Surface tiers */
+  --surface-chrome: color-mix(in srgb, var(--canvas-soft) 75%, transparent);
+  --surface-pane: color-mix(in srgb, var(--canvas-soft) 40%, var(--canvas));
+  --surface-pane-preview: color-mix(in srgb, var(--canvas-card) 30%, var(--canvas));
+
+  /* Elevation */
+  --shadow-sm: 0 4px 24px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 12px 40px rgba(0, 0, 0, 0.45);
+  --glow-breeze: 0 0 12px color-mix(in srgb, var(--accent-breeze) 35%, transparent);
+  --glow-sunset: 0 0 16px color-mix(in srgb, var(--accent-sunset) 25%, transparent);
 
   /* Accents (sparse — atmosphere + focus cues) */
   --accent-sunset: #ff7a17;
@@ -66,6 +78,7 @@
   --color-body-mid: var(--body-mid);
   --color-mute: var(--mute);
   --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
   --color-on-primary: var(--on-primary);
   --color-primary: var(--primary);
   --color-accent-sunset: var(--accent-sunset);
@@ -125,6 +138,178 @@ body {
   padding-left: var(--safe-left);
 }
 
+/* Surface & elevation utilities */
+.vt-chrome {
+  background: var(--surface-chrome);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: var(--hairline-strong);
+}
+
+.vt-pane {
+  background: var(--surface-pane);
+}
+
+.vt-pane-preview {
+  background: var(--surface-pane-preview);
+}
+
+.vt-pane-divider {
+  border-color: var(--hairline-strong);
+}
+
+@media (min-width: 768px) {
+  .vt-pane--split {
+    border-right: 1px solid var(--hairline-strong);
+    box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.04);
+  }
+}
+
+.vt-elevated {
+  background: var(--canvas-card);
+  border: 1px solid var(--hairline-strong);
+  box-shadow: var(--shadow-md);
+}
+
+.vt-elevated--sm {
+  background: var(--canvas-card);
+  border: 1px solid var(--hairline-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.vt-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline-strong);
+  background: color-mix(in srgb, var(--canvas-soft) 80%, transparent);
+}
+
+.vt-segment__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(var(--touch-min) - 8px);
+  padding: 0 var(--space-md);
+  border-radius: var(--radius-pill);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--mute);
+  font-family: var(--font-geist), "Geist", ui-sans-serif, sans-serif;
+  font-size: 14px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    border-color var(--duration-fast) var(--ease-out);
+}
+
+.vt-segment__btn:hover:not(:disabled) {
+  color: var(--ink);
+}
+
+.vt-segment__btn--active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
+  box-shadow: var(--glow-breeze);
+}
+
+.vt-segment__btn:focus-visible {
+  outline: 2px solid var(--accent-breeze);
+  outline-offset: 2px;
+}
+
+.vt-segment__btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* Typography hierarchy */
+.vt-title {
+  font-family: var(--font-geist), "Geist", ui-sans-serif, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 20px;
+  color: var(--ink);
+}
+
+.vt-eyebrow {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--accent-breeze) 70%, var(--mute));
+}
+
+.vt-meta {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 1.1px;
+  color: var(--mute);
+}
+
+.vt-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--hairline-strong);
+  background: color-mix(in srgb, var(--canvas-soft) 70%, transparent);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.vt-brand-mark {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    var(--accent-sunset),
+    var(--accent-sunset-soft)
+  );
+  box-shadow: var(--glow-sunset);
+  flex-shrink: 0;
+}
+
+.vt-status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.vt-status-dot--connected {
+  background: #4ade80;
+  box-shadow: 0 0 8px color-mix(in srgb, #4ade80 50%, transparent);
+}
+
+.vt-status-dot--connecting {
+  background: #fbbf24;
+  box-shadow: 0 0 8px color-mix(in srgb, #fbbf24 50%, transparent);
+}
+
+.vt-status-dot--error {
+  background: #f87171;
+  box-shadow: 0 0 8px color-mix(in srgb, #f87171 50%, transparent);
+}
+
 /* Shared interactive chrome */
 .vt-pill {
   display: inline-flex;
@@ -149,11 +334,16 @@ body {
     border-color var(--duration-fast) var(--ease-out),
     color var(--duration-fast) var(--ease-out),
     opacity var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
+    transform var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
 }
 
 .vt-pill:hover:not(:disabled) {
   border-color: var(--body-mid);
+}
+
+.vt-pill--ghost:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--canvas-soft) 60%, transparent);
 }
 
 .vt-pill:active:not(:disabled) {
@@ -181,6 +371,10 @@ body {
   border-color: var(--ink-hover);
 }
 
+.vt-pill--solid.vt-pill--glow {
+  box-shadow: var(--glow-breeze);
+}
+
 .vt-pill--ghost {
   border-color: var(--hairline);
 }
@@ -201,8 +395,11 @@ body {
 }
 
 .vt-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-family: var(--font-geist), "Geist", ui-sans-serif, sans-serif;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 400;
   letter-spacing: -0.04em;
   line-height: 1;
@@ -324,6 +521,11 @@ body {
 
 .vt-chat-msg--ai .vt-chat-msg__body {
   color: var(--body);
+  background: color-mix(in srgb, var(--canvas-soft) 85%, transparent);
+  border-left: 2px solid var(--accent-breeze);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  margin-top: 2px;
 }
 
 .vt-chat-msg__hint {
@@ -339,8 +541,24 @@ body {
   align-items: flex-end;
   gap: 8px;
   padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
-  border-top: 1px solid var(--hairline);
+  border-top: 1px solid var(--hairline-strong);
   background: color-mix(in srgb, var(--canvas) 92%, transparent);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.vt-chat-header {
+  background: color-mix(in srgb, var(--canvas-soft) 60%, transparent);
+  border-bottom: 1px solid var(--hairline-strong);
+}
+
+.vt-chat-panel--desktop {
+  box-shadow: var(--shadow-sm);
+}
+
+@media (min-width: 768px) {
+  .vt-chat-panel--desktop {
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.25);
+  }
 }
 
 .vt-chat-composer__field {
@@ -435,13 +653,13 @@ body {
 .vt-toolbar {
   display: flex;
   align-items: center;
-  gap: var(--space-sm);
+  gap: var(--space-md);
   min-width: 0;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 1px;
+  padding-bottom: 2px;
 }
 
 .vt-toolbar::-webkit-scrollbar {
@@ -480,14 +698,17 @@ body {
 }
 
 .cm-gutters {
-  background: transparent;
-  border-right: 1px solid var(--hairline);
+  background: color-mix(in srgb, var(--canvas-soft) 50%, transparent);
+  border-right: 1px solid var(--hairline-strong);
   color: var(--mute);
 }
 
-.cm-activeLineGutter,
+.cm-activeLineGutter {
+  background: color-mix(in srgb, var(--canvas-soft) 50%, transparent);
+}
+
 .cm-activeLine {
-  background: transparent;
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
 }
 
 .cm-selectionBackground,
@@ -668,11 +889,16 @@ body {
   color: var(--ink);
 }
 
+.vt-dropdown {
+  animation: vt-rise-in var(--duration-med) var(--ease-out);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .vt-overlay,
   .vt-dialog,
   .vt-chat-panel,
-  .vt-pill {
+  .vt-pill,
+  .vt-dropdown {
     animation: none !important;
     transition: none !important;
   }

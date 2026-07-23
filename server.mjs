@@ -16,9 +16,10 @@ const hostname = process.env.HOST || "0.0.0.0";
 const port = Number.parseInt(process.env.PORT || "3001", 10);
 
 const app = next({ dev, hostname, port });
-const handle = app.getRequestHandler();
-
 await app.prepare();
+
+const handle = app.getRequestHandler();
+const upgradeHandler = app.getUpgradeHandler();
 
 const server = createServer((req, res) => {
   const parsedUrl = parse(req.url || "/", true);
@@ -33,9 +34,12 @@ wss.on("connection", (conn, req) => {
 
 server.on("upgrade", (req, socket, head) => {
   const { pathname } = parse(req.url || "/", true);
-  if (pathname?.startsWith("/_next/")) {
+
+  if (pathname === "/_next/webpack-hmr" || pathname?.startsWith("/_next/")) {
+    void upgradeHandler(req, socket, head);
     return;
   }
+
   if (
     pathname &&
     pathname !== "/" &&
@@ -47,6 +51,7 @@ server.on("upgrade", (req, socket, head) => {
     });
     return;
   }
+
   socket.destroy();
 });
 

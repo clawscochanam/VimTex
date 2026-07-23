@@ -319,13 +319,13 @@ export function RoomChatSidebar({
 
   return (
     <aside
-      className="vt-chat-panel flex h-[min(48vh,400px)] min-h-0 w-full shrink-0 flex-col border-t border-hairline bg-canvas/95 backdrop-blur-sm md:h-full md:w-[min(100%,340px)] md:border-t-0 md:border-l"
+      className="vt-chat-panel vt-chat-panel--desktop flex h-[min(48vh,400px)] min-h-0 w-full shrink-0 flex-col border-t border-hairline-strong bg-canvas/95 backdrop-blur-sm md:h-full md:w-[min(100%,340px)] md:border-t-0 md:border-l"
       aria-label="Room chat"
     >
-      <div className="flex min-h-11 shrink-0 items-center gap-2 border-b border-hairline px-2 pl-3">
+      <div className="vt-chat-header flex min-h-11 shrink-0 items-center gap-2 px-2 pl-3">
         <div className="flex min-w-0 flex-1 items-baseline gap-2">
-          <span className="text-sm text-ink">Chat</span>
-          <span className="truncate text-xs text-mute">
+          <span className="vt-title">Chat</span>
+          <span className="vt-meta truncate">
             {peerCount} online
           </span>
         </div>
@@ -437,7 +437,7 @@ export function RoomChatSidebar({
       <div className="relative shrink-0">
         {mentionOpen && filteredMentions.length > 0 ? (
           <ul
-            className="absolute bottom-full left-2 right-2 mb-1 overflow-hidden rounded-xl border border-hairline bg-canvas-card"
+            className="vt-elevated--sm vt-dropdown absolute bottom-full left-2 right-2 mb-1 overflow-hidden rounded-xl"
             role="listbox"
           >
             {filteredMentions.map((tag, i) => (
@@ -509,7 +509,11 @@ export function RoomChatSidebar({
             type="button"
             onClick={() => void send()}
             disabled={busy || !input.trim()}
-            className="vt-pill vt-pill--solid vt-chat-send"
+            className={
+              input.trim()
+                ? "vt-pill vt-pill--solid vt-pill--glow vt-chat-send"
+                : "vt-pill vt-pill--ghost vt-chat-send"
+            }
             aria-label="Send message"
           >
             Send

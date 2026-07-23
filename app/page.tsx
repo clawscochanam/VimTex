@@ -43,29 +43,36 @@ export default function HomePage() {
   const [peerCount, setPeerCount] = useState(1);
   const [hydrated, setHydrated] = useState(false);
   const [user, setUser] = useState<CollabUser | null>(null);
-  const [needsName, setNeedsName] = useState(false);
+  const [needsName, setNeedsName] = useState(true);
   const [editingName, setEditingName] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const editorRef = useRef<VimEditorHandle>(null);
 
   useEffect(() => {
-    const existing = readRoomFromLocation();
-    const room = existing ?? createRoomId();
-    writeRoomToLocation(room);
-    setRoomId(room);
+    try {
+      const existing = readRoomFromLocation();
+      const room = existing ?? createRoomId();
+      writeRoomToLocation(room);
+      setRoomId(room);
 
-    const storedMode = loadViewMode();
-    if (storedMode != null) setViewMode(storedMode);
+      const storedMode = loadViewMode();
+      if (storedMode != null) setViewMode(storedMode);
 
-    const storedName = loadDisplayName();
-    if (storedName) {
-      setUser(createCollabUser({ name: storedName }));
-      setNeedsName(false);
-    } else {
+      const storedName = loadDisplayName();
+      if (storedName) {
+        setUser(createCollabUser({ name: storedName }));
+        setNeedsName(false);
+      } else {
+        setUser(createCollabUser());
+        setNeedsName(true);
+      }
+    } catch {
+      setRoomId((prev) => prev ?? createRoomId());
       setUser(createCollabUser());
       setNeedsName(true);
+    } finally {
+      setHydrated(true);
     }
-    setHydrated(true);
   }, []);
 
   useEffect(() => {
@@ -100,13 +107,16 @@ export default function HomePage() {
 
   return (
     <div className="app-shell flex h-dvh flex-col text-ink">
-      <header className="flex min-h-[var(--header-h)] shrink-0 flex-col gap-2 border-b border-hairline px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 sm:py-0">
+      <header className="vt-chrome flex min-h-[var(--header-h)] shrink-0 flex-col gap-2 border-b px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:px-4 sm:py-0">
         <div className="flex min-w-0 items-center justify-between gap-3 sm:justify-start sm:gap-4">
-          <span className="vt-brand text-ink">VimTex</span>
-          <span className="vt-caption text-mute sm:hidden">
+          <span className="vt-brand text-ink">
+            <span className="vt-brand-mark" aria-hidden />
+            VimTex
+          </span>
+          <span className="vt-mode-chip sm:hidden">
             {vimModeLabel(vimMode)}
           </span>
-          <span className="vt-caption hidden text-mute sm:inline">
+          <span className="vt-mode-chip hidden sm:inline">
             {vimModeLabel(vimMode)}
           </span>
         </div>
@@ -118,7 +128,9 @@ export default function HomePage() {
             disabled={!ready}
             onClick={() => setChatOpen((v) => !v)}
             className={
-              chatOpen ? "vt-pill vt-pill--solid" : "vt-pill vt-pill--ghost"
+              chatOpen
+                ? "vt-pill vt-pill--solid vt-pill--glow"
+                : "vt-pill vt-pill--ghost"
             }
           >
             Chat
@@ -139,8 +151,8 @@ export default function HomePage() {
           <section
             className={
               isSplit
-                ? "min-h-0 flex-[0.55] border-b border-hairline md:border-b-0 md:border-r"
-                : "h-full min-h-0"
+                ? "vt-pane vt-pane--split min-h-0 flex-[0.55] border-b border-hairline-strong md:border-b-0"
+                : "vt-pane h-full min-h-0"
             }
           >
             {ready ? (
@@ -162,7 +174,7 @@ export default function HomePage() {
           </section>
 
           {isSplit ? (
-            <section className="min-h-0 flex-[0.45] bg-transparent">
+            <section className="vt-pane-preview flex min-h-0 flex-[0.45] flex-col">
               <LatexPreview note={note} />
             </section>
           ) : null}
@@ -189,7 +201,7 @@ export default function HomePage() {
       />
 
       <NamePicker
-        open={namePickerOpen}
+        open={hydrated && namePickerOpen}
         initialName={needsName ? "" : (user?.name ?? "")}
         onSubmit={handleNameSubmit}
         allowSkip={editingName && !needsName}

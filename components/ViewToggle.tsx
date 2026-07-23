@@ -17,7 +17,7 @@ export function ViewToggle({ value, onChange }: ViewToggleProps) {
     <div
       role="group"
       aria-label="View mode"
-      className="flex items-center gap-1.5"
+      className="vt-segment"
     >
       {OPTIONS.map((opt) => {
         const active = value === opt.id;
@@ -30,8 +30,8 @@ export function ViewToggle({ value, onChange }: ViewToggleProps) {
             onClick={() => onChange(opt.id)}
             className={
               active
-                ? "vt-pill vt-pill--solid vt-pill--label"
-                : "vt-pill vt-pill--ghost vt-pill--label"
+                ? "vt-segment__btn vt-segment__btn--active"
+                : "vt-segment__btn"
             }
           >
             <span className="sm:hidden">{opt.short}</span>

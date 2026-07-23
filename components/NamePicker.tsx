@@ -44,7 +44,7 @@ export function NamePicker({
 
   return (
     <div
-      className="vt-overlay fixed inset-0 z-50 flex items-end justify-center bg-canvas/80 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] sm:items-center"
+      className="vt-overlay fixed inset-0 z-50 flex items-end justify-center bg-canvas/80 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-sm sm:items-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -55,7 +55,7 @@ export function NamePicker({
         }
       }}
     >
-      <div className="vt-dialog w-full max-w-sm rounded-[var(--radius-sm)] border border-hairline bg-canvas-card p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
+      <div className="vt-dialog vt-elevated w-full max-w-sm rounded-[var(--radius-sm)] p-6">
         <p id={titleId} className="vt-caption text-ink">
           Display name
         </p>
@@ -75,7 +75,7 @@ export function NamePicker({
               submit();
             }
           }}
-          className="mt-4 min-h-[var(--touch-min)] w-full rounded-[var(--radius-sm)] border border-hairline bg-canvas-soft px-4 py-3 text-base text-ink outline-none placeholder:text-mute focus:border-body-mid"
+          className="mt-4 min-h-[var(--touch-min)] w-full rounded-[var(--radius-sm)] border border-hairline bg-canvas-soft px-4 py-3 text-base text-ink outline-none placeholder:text-mute focus:border-body-mid focus:shadow-[var(--glow-breeze)]"
           autoComplete="nickname"
           spellCheck={false}
           enterKeyHint="done"
