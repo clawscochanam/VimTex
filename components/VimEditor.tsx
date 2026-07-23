@@ -6,7 +6,7 @@ import {
   useImperativeHandle,
   useRef,
 } from "react";
-import { Compartment, EditorState, Prec } from "@codemirror/state";
+import { EditorState, Prec } from "@codemirror/state";
 import {
   EditorView,
   keymap,
@@ -20,11 +20,12 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { yCollab, yUndoManagerKeymap } from "y-codemirror.next";
 import { mathInlineWidgets } from "@/lib/cm-math-widgets";
+import { editorPlaceholder } from "@/lib/cm-placeholder";
 import { latexCompletionExtension } from "@/lib/cm-latex-completion";
 import { getCollabWsBase } from "@/lib/collab";
 import type { RoomChatMessage } from "@/lib/room-chat";
-import { STARTER_NOTE } from "@/lib/starter-content";
-import type { CollabStatus, CollabUser, ViewMode, VimMode } from "@/lib/types";
+import { EDITOR_PLACEHOLDER } from "@/lib/starter-content";
+import type { CollabStatus, CollabUser, VimMode } from "@/lib/types";
 
 export type VimEditorHandle = {
   focus: () => void;
@@ -45,7 +46,8 @@ export type VimEditorHandle = {
 type VimEditorProps = {
   roomId: string;
   user: CollabUser;
-  viewMode: ViewMode;
+  /** Local autosave seed when the Yjs room is empty after sync. */
+  localSeed?: string | null;
   onChange: (value: string) => void;
   onVimModeChange: (mode: VimMode) => void;
   onCollabStatus: (status: CollabStatus) => void;
@@ -121,7 +123,7 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
     {
       roomId,
       user,
-      viewMode,
+      localSeed,
       onChange,
       onVimModeChange,
       onCollabStatus,
@@ -136,18 +138,19 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
     const ydocRef = useRef<Y.Doc | null>(null);
     const ytextRef = useRef<Y.Text | null>(null);
     const ychatRef = useRef<Y.Array<RoomChatMessage> | null>(null);
-    const inlineMathRef = useRef(new Compartment());
     const onChangeRef = useRef(onChange);
     const onVimModeChangeRef = useRef(onVimModeChange);
     const onCollabStatusRef = useRef(onCollabStatus);
     const onPeerCountRef = useRef(onPeerCount);
     const userRef = useRef(user);
+    const localSeedRef = useRef(localSeed);
 
     onChangeRef.current = onChange;
     onVimModeChangeRef.current = onVimModeChange;
     onCollabStatusRef.current = onCollabStatus;
     onPeerCountRef.current = onPeerCount;
     userRef.current = user;
+    localSeedRef.current = localSeed;
 
     useImperativeHandle(ref, () => {
       const replaceAll = (content: string) => {
@@ -265,10 +268,13 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
         if (!synced || seeded) return;
         seeded = true;
         if (ytext.length === 0) {
-          ydoc.transact(() => {
-            ytext.insert(0, STARTER_NOTE);
-          }, "seed");
-          um.clear();
+          const seed = localSeedRef.current?.trim();
+          if (seed) {
+            ydoc.transact(() => {
+              ytext.insert(0, seed);
+            }, "local-seed");
+            um.clear();
+          }
         }
         emitText();
       };
@@ -332,9 +338,8 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
           EditorView.lineWrapping,
           updateListener,
           yCollab(ytext, provider.awareness, { undoManager: um }),
-          inlineMathRef.current.of(
-            viewMode === "realtime" ? [mathInlineWidgets] : [],
-          ),
+          mathInlineWidgets,
+          ...editorPlaceholder(EDITOR_PLACEHOLDER),
         ],
       });
 
@@ -374,19 +379,7 @@ export const VimEditor = forwardRef<VimEditorHandle, VimEditorProps>(
         ychatRef.current = null;
       };
       // Only remount when the room changes — awareness updates via the effect above.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [roomId]);
-
-    useEffect(() => {
-      const view = viewRef.current;
-      if (!view) return;
-      view.dispatch({
-        effects: inlineMathRef.current.reconfigure(
-          viewMode === "realtime" ? [mathInlineWidgets] : [],
-        ),
-      });
-      requestAnimationFrame(() => view.focus());
-    }, [viewMode]);
 
     return <div ref={hostRef} className="h-full min-h-0 w-full" />;
   },

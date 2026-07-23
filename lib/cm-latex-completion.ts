@@ -90,6 +90,84 @@ function applyLatexSnippet(
   return true;
 }
 
+function findMatchingCloseBrace(doc: string, open: number): number {
+  if (doc[open] !== "{") return -1;
+  let depth = 0;
+  for (let i = open; i < doc.length; i += 1) {
+    const ch = doc[i];
+    if (ch === "\\" && i + 1 < doc.length) {
+      i += 1;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
+}
+
+/** Innermost `{…}` pair containing the cursor (for `\frac{a}{b}` arg navigation). */
+function innermostBracePair(
+  doc: string,
+  head: number,
+): { open: number; close: number } | null {
+  let best: { open: number; close: number } | null = null;
+  for (let i = 0; i < doc.length; i += 1) {
+    if (doc[i] !== "{") continue;
+    const close = findMatchingCloseBrace(doc, i);
+    if (close === -1) continue;
+    if (head > i && head <= close) {
+      if (!best || i > best.open) best = { open: i, close };
+    }
+  }
+  return best;
+}
+
+const BRACE_JUMP_LOOKAHEAD = 48;
+
+/**
+ * Next cursor position when jumping through `\frac{}{}`-style arguments.
+ * Returns index inside the next `{`, or just after the current `}` when done.
+ */
+export function findNextLatexBraceTarget(
+  doc: string,
+  head: number,
+): number | null {
+  const pair = innermostBracePair(doc, head);
+  if (!pair) return null;
+
+  const limit = Math.min(doc.length, pair.close + 1 + BRACE_JUMP_LOOKAHEAD);
+  for (let i = pair.close + 1; i < limit; i += 1) {
+    if (doc[i] === "{") return i + 1;
+  }
+
+  return pair.close + 1;
+}
+
+/**
+ * Enter: advance snippet fields, else jump to the next `{}` or out of the
+ * current brace group (e.g. `\frac{}{}` → second arg → after closing `}`).
+ */
+export function latexEnterJump(view: EditorView): boolean {
+  if (!view.state.selection.main.empty) return false;
+
+  if (hasNextSnippetField(view.state)) {
+    if (nextSnippetField(view)) return true;
+  }
+
+  const head = view.state.selection.main.head;
+  const jump = findNextLatexBraceTarget(view.state.doc.toString(), head);
+  if (jump === null || jump === head) return false;
+
+  view.dispatch({
+    selection: { anchor: jump },
+    scrollIntoView: true,
+  });
+  return true;
+}
+
 /** Tab: accept popup → next snippet field → expand unique/exact command. */
 export function latexTabComplete(view: EditorView): boolean {
   if (completionStatus(view.state) === "active") {
@@ -123,8 +201,9 @@ export function latexTabComplete(view: EditorView): boolean {
   return true;
 }
 
-const latexTabBindings: KeyBinding[] = [
+const latexKeyBindings: KeyBinding[] = [
   { key: "Tab", run: latexTabComplete },
+  { key: "Enter", run: latexEnterJump },
 ];
 
 export const latexCompletionExtension = [
@@ -136,5 +215,5 @@ export const latexCompletionExtension = [
     interactionDelay: 0,
     optionClass: () => "vt-latex-option",
   }),
-  Prec.highest(keymap.of(latexTabBindings)),
+  Prec.highest(keymap.of(latexKeyBindings)),
 ];

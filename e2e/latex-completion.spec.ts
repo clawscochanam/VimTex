@@ -11,15 +11,12 @@ async function clearAppState(page: Page) {
   });
 }
 
-async function joinAs(page: Page, name: string, room: string) {
+async function openSheet(page: Page, room?: string) {
+  const id = room ?? `tex-${Date.now().toString(16)}`;
   await clearAppState(page);
-  await page.goto(`/?room=${room}`, { waitUntil: "domcontentloaded" });
-  const dialog = page.getByRole("dialog", { name: /display name/i });
-  await expect(dialog).toBeVisible();
-  await dialog.getByPlaceholder(/axion/i).fill(name);
-  await dialog.getByRole("button", { name: /join room/i }).click();
-  await expect(dialog).toBeHidden();
+  await page.goto(`/?room=${id}`, { waitUntil: "domcontentloaded" });
   await expect(page.locator(".cm-editor")).toBeVisible({ timeout: 20_000 });
+  return id;
 }
 
 async function vimInsertAtEnd(page: Page) {
@@ -36,8 +33,7 @@ async function editorText(page: Page) {
 
 test.describe("LaTeX tab completion", () => {
   test("\\frac + Tab inserts {}{}", async ({ page }) => {
-    const room = `tex-frac-${Date.now().toString(16)}`;
-    await joinAs(page, "Tex", room);
+    await openSheet(page);
     await vimInsertAtEnd(page);
 
     await page.keyboard.type("\\frac");
@@ -47,8 +43,7 @@ test.describe("LaTeX tab completion", () => {
   });
 
   test("\\sqrt + Tab inserts {}", async ({ page }) => {
-    const room = `tex-sqrt-${Date.now().toString(16)}`;
-    await joinAs(page, "Tex", room);
+    await openSheet(page);
     await vimInsertAtEnd(page);
 
     await page.keyboard.type("\\sqrt");
@@ -58,8 +53,7 @@ test.describe("LaTeX tab completion", () => {
   });
 
   test("\\fr suggests frac and Tab expands braces", async ({ page }) => {
-    const room = `tex-sug-${Date.now().toString(16)}`;
-    await joinAs(page, "Tex", room);
+    await openSheet(page);
     await vimInsertAtEnd(page);
 
     await page.keyboard.type("\\fr");
@@ -70,5 +64,23 @@ test.describe("LaTeX tab completion", () => {
 
     await page.keyboard.press("Tab");
     await expect.poll(async () => editorText(page)).toContain("\\frac{}{}");
+  });
+
+  test("Enter jumps through \\frac{}{} brace fields", async ({ page }, testInfo) => {
+    test.skip(
+      testInfo.project.name === "mobile",
+      "Mobile emulation routes Enter inconsistently in headless tests",
+    );
+
+    await openSheet(page);
+    await vimInsertAtEnd(page);
+
+    await page.keyboard.type("\\frac");
+    await page.keyboard.press("Tab");
+    await page.keyboard.type("a");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type("b");
+
+    await expect.poll(async () => editorText(page)).toContain("\\frac{a}{b}");
   });
 });

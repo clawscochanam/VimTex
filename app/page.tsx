@@ -2,7 +2,6 @@
 
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ViewToggle } from "@/components/ViewToggle";
 import { LatexPreview } from "@/components/LatexPreview";
 import { StatusBar } from "@/components/StatusBar";
 import { ExportMenu } from "@/components/ExportMenu";
@@ -18,8 +17,8 @@ import {
   saveDisplayName,
   writeRoomToLocation,
 } from "@/lib/collab";
-import { loadViewMode, saveViewMode } from "@/lib/storage";
-import type { CollabStatus, CollabUser, ViewMode, VimMode } from "@/lib/types";
+import { loadNote, saveNote } from "@/lib/storage";
+import type { CollabStatus, CollabUser, VimMode } from "@/lib/types";
 
 const VimEditor = dynamic(
   () => import("@/components/VimEditor").then((m) => m.VimEditor),
@@ -27,7 +26,7 @@ const VimEditor = dynamic(
     ssr: false,
     loading: () => (
       <div className="flex h-full items-center px-4 font-mono text-xs uppercase tracking-[1.2px] text-mute sm:px-5">
-        Connecting room…
+        Opening sheet…
       </div>
     ),
   },
@@ -35,18 +34,19 @@ const VimEditor = dynamic(
 
 export default function HomePage() {
   const [note, setNote] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("split");
   const [vimMode, setVimMode] = useState<VimMode>("normal");
   const [roomId, setRoomId] = useState<string | null>(null);
+  const [localSeed, setLocalSeed] = useState<string | null>(null);
   const [collabStatus, setCollabStatus] =
     useState<CollabStatus>("connecting");
   const [peerCount, setPeerCount] = useState(1);
   const [hydrated, setHydrated] = useState(false);
   const [user, setUser] = useState<CollabUser | null>(null);
-  const [needsName, setNeedsName] = useState(true);
   const [editingName, setEditingName] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const editorRef = useRef<VimEditorHandle>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     try {
@@ -54,36 +54,33 @@ export default function HomePage() {
       const room = existing ?? createRoomId();
       writeRoomToLocation(room);
       setRoomId(room);
-
-      const storedMode = loadViewMode();
-      if (storedMode != null) setViewMode(storedMode);
+      setLocalSeed(loadNote(room));
 
       const storedName = loadDisplayName();
-      if (storedName) {
-        setUser(createCollabUser({ name: storedName }));
-        setNeedsName(false);
-      } else {
-        setUser(createCollabUser());
-        setNeedsName(true);
-      }
+      setUser(
+        createCollabUser(
+          storedName ? { name: storedName } : undefined,
+        ),
+      );
     } catch {
-      setRoomId((prev) => prev ?? createRoomId());
+      const room = createRoomId();
+      setRoomId(room);
       setUser(createCollabUser());
-      setNeedsName(true);
     } finally {
       setHydrated(true);
     }
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    saveViewMode(viewMode);
-  }, [viewMode, hydrated]);
-
-  const handleViewMode = useCallback((mode: ViewMode) => {
-    setViewMode(mode);
-    requestAnimationFrame(() => editorRef.current?.focus());
-  }, []);
+    if (!hydrated || !roomId) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      saveNote(roomId, note);
+    }, 300);
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [note, roomId, hydrated]);
 
   const handleNameSubmit = useCallback((name: string) => {
     saveDisplayName(name);
@@ -92,7 +89,6 @@ export default function HomePage() {
         ? { ...prev, name }
         : createCollabUser({ name }),
     );
-    setNeedsName(false);
     setEditingName(false);
     requestAnimationFrame(() => editorRef.current?.focus());
   }, []);
@@ -101,9 +97,27 @@ export default function HomePage() {
     setEditingName(true);
   }, []);
 
-  const isSplit = viewMode === "split";
-  const ready = hydrated && !!roomId && !!user && !needsName;
-  const namePickerOpen = needsName || editingName;
+  const togglePreview = useCallback(() => {
+    setPreviewOpen((open) => {
+      const next = !open;
+      if (!next) {
+        requestAnimationFrame(() => editorRef.current?.focus());
+      }
+      return next;
+    });
+  }, []);
+
+  const handleNewSheet = useCallback(() => {
+    const newRoom = createRoomId();
+    writeRoomToLocation(newRoom);
+    setNote("");
+    setLocalSeed(null);
+    setPreviewOpen(false);
+    setRoomId(newRoom);
+    requestAnimationFrame(() => editorRef.current?.focus());
+  }, []);
+
+  const ready = hydrated && !!roomId && !!user;
 
   return (
     <div className="app-shell flex h-dvh flex-col text-ink">
@@ -121,6 +135,28 @@ export default function HomePage() {
           </span>
         </div>
         <div className="vt-toolbar sm:justify-end" role="toolbar" aria-label="Workspace tools">
+          <button
+            type="button"
+            disabled={!ready}
+            onClick={handleNewSheet}
+            className="vt-pill vt-pill--ghost"
+            title="Start a fresh sheet in a new room"
+          >
+            New
+          </button>
+          <button
+            type="button"
+            aria-pressed={previewOpen}
+            disabled={!ready}
+            onClick={togglePreview}
+            className={
+              previewOpen
+                ? "vt-pill vt-pill--solid vt-pill--glow"
+                : "vt-pill vt-pill--ghost"
+            }
+          >
+            Preview
+          </button>
           {roomId ? <ShareRoom roomId={roomId} /> : null}
           <button
             type="button"
@@ -135,32 +171,19 @@ export default function HomePage() {
           >
             Chat
           </button>
-          <ViewToggle value={viewMode} onChange={handleViewMode} />
           <ExportMenu note={note} />
         </div>
       </header>
 
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <main
-          className={
-            isSplit
-              ? "flex min-h-0 min-w-0 flex-1 flex-col md:flex-row"
-              : "min-h-0 min-w-0 flex-1"
-          }
-        >
-          <section
-            className={
-              isSplit
-                ? "vt-pane vt-pane--split min-h-0 flex-[0.55] border-b border-hairline-strong md:border-b-0"
-                : "vt-pane h-full min-h-0"
-            }
-          >
+        <main className="min-h-0 min-w-0 flex-1">
+          <section className="vt-pane h-full min-h-0">
             {ready ? (
               <VimEditor
                 ref={editorRef}
                 roomId={roomId}
                 user={user}
-                viewMode={viewMode}
+                localSeed={localSeed}
                 onChange={setNote}
                 onVimModeChange={setVimMode}
                 onCollabStatus={setCollabStatus}
@@ -168,17 +191,20 @@ export default function HomePage() {
               />
             ) : (
               <div className="flex h-full items-center px-4 font-mono text-xs uppercase tracking-[1.2px] text-mute sm:px-5">
-                {namePickerOpen ? "Enter a display name…" : "Preparing room…"}
+                Opening sheet…
               </div>
             )}
           </section>
-
-          {isSplit ? (
-            <section className="vt-pane-preview flex min-h-0 flex-[0.45] flex-col">
-              <LatexPreview note={note} />
-            </section>
-          ) : null}
         </main>
+
+        {previewOpen ? (
+          <aside
+            className="vt-pane-preview flex min-h-0 w-full flex-col border-t border-hairline-strong md:w-[min(42vw,28rem)] md:border-t-0 md:border-l"
+            aria-label="Rendered preview"
+          >
+            <LatexPreview note={note} />
+          </aside>
+        ) : null}
 
         {user ? (
           <RoomChatSidebar
@@ -201,15 +227,11 @@ export default function HomePage() {
       />
 
       <NamePicker
-        open={hydrated && namePickerOpen}
-        initialName={needsName ? "" : (user?.name ?? "")}
+        open={hydrated && editingName}
+        initialName={user?.name ?? ""}
         onSubmit={handleNameSubmit}
-        allowSkip={editingName && !needsName}
-        onCancel={
-          editingName && !needsName
-            ? () => setEditingName(false)
-            : undefined
-        }
+        allowSkip
+        onCancel={() => setEditingName(false)}
       />
     </div>
   );

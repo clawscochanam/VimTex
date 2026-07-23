@@ -22,8 +22,139 @@ const DELIMITERS: Array<{
   { open: "\\(", close: "\\)", display: false },
 ];
 
-/** A line looks like LaTeX if it contains a command like \frac. */
-const TEX_COMMAND = /\\[a-zA-Z]+/;
+function looksLikeTexCommandAt(text: string, index: number): boolean {
+  if (text[index] !== "\\") return false;
+  const next = text[index + 1];
+  return next !== undefined && /[a-zA-Z]/.test(next);
+}
+
+function consumeBraced(text: string, from: number): number {
+  if (text[from] !== "{") return from;
+  let depth = 0;
+  let i = from;
+  while (i < text.length) {
+    const ch = text[i];
+    if (ch === "\\" && i + 1 < text.length) {
+      i += 2;
+      continue;
+    }
+    if (ch === "{") depth += 1;
+    else if (ch === "}") {
+      depth -= 1;
+      if (depth === 0) return i + 1;
+    }
+    i += 1;
+  }
+  return from;
+}
+
+function consumeBracketed(text: string, from: number): number {
+  if (text[from] !== "[") return from;
+  let depth = 0;
+  let i = from;
+  while (i < text.length) {
+    const ch = text[i];
+    if (ch === "\\" && i + 1 < text.length) {
+      i += 2;
+      continue;
+    }
+    if (ch === "[") depth += 1;
+    else if (ch === "]") {
+      depth -= 1;
+      if (depth === 0) return i + 1;
+    }
+    i += 1;
+  }
+  return from;
+}
+
+function consumeTeXSuffix(text: string, from: number): number {
+  let i = from;
+  while (i < text.length) {
+    if (text[i] === "[") {
+      const next = consumeBracketed(text, i);
+      if (next === i) break;
+      i = next;
+      continue;
+    }
+    if (text[i] === "{") {
+      const next = consumeBraced(text, i);
+      if (next === i) break;
+      i = next;
+      continue;
+    }
+    if (text[i] === "^" || text[i] === "_") {
+      i += 1;
+      if (text[i] === "{") {
+        const next = consumeBraced(text, i);
+        if (next === i) break;
+        i = next;
+        continue;
+      }
+      if (text[i] !== undefined) {
+        i += 1;
+        continue;
+      }
+      break;
+    }
+    break;
+  }
+  return i;
+}
+
+/**
+ * Span from `start` at `\` through the TeX expression (command + args, then
+ * math operators / further commands). Stops before adjacent English words.
+ */
+function endOfTeXSpan(text: string, start: number): number {
+  if (!looksLikeTexCommandAt(text, start)) return start;
+
+  let i = start + 1;
+  while (i < text.length && /[a-zA-Z]/.test(text[i]!)) i += 1;
+  i = consumeTeXSuffix(text, i);
+
+  while (i < text.length) {
+    while (i < text.length && text[i] === " ") i += 1;
+    if (i >= text.length) break;
+
+    if (looksLikeTexCommandAt(text, i)) {
+      i += 1;
+      while (i < text.length && /[a-zA-Z]/.test(text[i]!)) i += 1;
+      i = consumeTeXSuffix(text, i);
+      continue;
+    }
+
+    if (/[0-9+\-*/=<>.,;:!|^_{}()[\]]/.test(text[i]!)) {
+      if (text[i] === "{") {
+        const next = consumeBraced(text, i);
+        if (next === i) break;
+        i = next;
+        continue;
+      }
+      if (text[i] === "[") {
+        const next = consumeBracketed(text, i);
+        if (next === i) break;
+        i = next;
+        continue;
+      }
+      i += 1;
+      continue;
+    }
+
+    // Single-letter variables (x, y) — not multi-letter English words.
+    if (
+      /[a-zA-Z]/.test(text[i]!) &&
+      (i + 1 >= text.length || !/[a-zA-Z]/.test(text[i + 1]!))
+    ) {
+      i += 1;
+      continue;
+    }
+
+    break;
+  }
+
+  return i;
+}
 
 function startsWithAt(text: string, index: number, token: string): boolean {
   return text.startsWith(token, index);
@@ -49,13 +180,9 @@ function findClosing(text: string, from: number, close: string): number {
   return -1;
 }
 
-function looksLikeTex(content: string): boolean {
-  return TEX_COMMAND.test(content);
-}
-
 /**
- * Walk explicit \( \) / \[ \] first, then treat remaining lines that contain
- * TeX commands as display math (no $ needed).
+ * Walk explicit \( \) / \[ \] first, then auto-detect inline TeX command spans
+ * within prose (not whole lines). Use \[ \] for display layout.
  */
 export function parseNote(text: string): NoteSegment[] {
   const explicit = parseExplicitDelimiters(text);
@@ -147,7 +274,7 @@ function parseExplicitDelimiters(text: string): NoteSegment[] {
   return segments;
 }
 
-/** Lines with TeX commands become display math; other lines stay text. */
+/** Auto-detect TeX command spans inside text; whole lines are not promoted. */
 function autoMathLines(content: string, baseOffset: number): NoteSegment[] {
   if (!content) return [];
 
@@ -157,61 +284,73 @@ function autoMathLines(content: string, baseOffset: number): NoteSegment[] {
 
   for (const part of parts) {
     const absFrom = baseOffset + offset;
-    const absTo = absFrom + part.length;
     offset += part.length;
 
-    if (part === "\n" || part.length === 0) {
-      if (part.length > 0) {
-        segments.push({
-          type: "text",
-          content: part,
-          from: absFrom,
-          to: absTo,
-        });
-      }
+    if (part === "\n") {
+      segments.push({
+        type: "text",
+        content: "\n",
+        from: absFrom,
+        to: absFrom + 1,
+      });
       continue;
     }
 
-    const trimmed = part.trim();
-    if (trimmed && looksLikeTex(trimmed)) {
-      const lead = part.match(/^\s*/)?.[0].length ?? 0;
-      const trail = part.match(/\s*$/)?.[0].length ?? 0;
-      const bodyFrom = absFrom + lead;
-      const bodyTo = absTo - trail;
+    if (part.length === 0) continue;
 
-      if (lead > 0) {
-        segments.push({
-          type: "text",
-          content: part.slice(0, lead),
-          from: absFrom,
-          to: bodyFrom,
-        });
-      }
-      segments.push({
-        type: "math",
-        content: part.slice(lead, part.length - trail),
-        display: true,
-        from: bodyFrom,
-        to: bodyTo,
-        bodyFrom,
-        bodyTo,
-      });
-      if (trail > 0) {
-        segments.push({
-          type: "text",
-          content: part.slice(part.length - trail),
-          from: bodyTo,
-          to: absTo,
-        });
-      }
+    segments.push(...parseInlineAutoMath(part, absFrom));
+  }
+
+  return segments;
+}
+
+/** Extract `\frac{}{}`-style spans from a single line of prose + math. */
+function parseInlineAutoMath(line: string, baseOffset: number): NoteSegment[] {
+  const segments: NoteSegment[] = [];
+  let i = 0;
+  let textStart = 0;
+
+  while (i < line.length) {
+    if (!looksLikeTexCommandAt(line, i)) {
+      i += 1;
       continue;
+    }
+
+    const spanEnd = endOfTeXSpan(line, i);
+    if (spanEnd <= i) {
+      i += 1;
+      continue;
+    }
+
+    if (i > textStart) {
+      segments.push({
+        type: "text",
+        content: line.slice(textStart, i),
+        from: baseOffset + textStart,
+        to: baseOffset + i,
+      });
     }
 
     segments.push({
+      type: "math",
+      content: line.slice(i, spanEnd),
+      display: false,
+      from: baseOffset + i,
+      to: baseOffset + spanEnd,
+      bodyFrom: baseOffset + i,
+      bodyTo: baseOffset + spanEnd,
+    });
+
+    i = spanEnd;
+    textStart = spanEnd;
+  }
+
+  if (textStart < line.length) {
+    segments.push({
       type: "text",
-      content: part,
-      from: absFrom,
-      to: absTo,
+      content: line.slice(textStart),
+      from: baseOffset + textStart,
+      to: baseOffset + line.length,
     });
   }
 

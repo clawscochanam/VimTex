@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "VimTex",
-  description: "Ephemeral Vim + LaTeX scratchpad",
+  description: "Keyboard-first Vim + LaTeX scratchpad with inline math",
 };
 
 export const viewport: Viewport = {

@@ -1,10 +1,10 @@
 # VimTex
 
-**Vim keybindings. Live LaTeX. Shared buffer. Zero setup.**
+**Vim keybindings. Inline LaTeX. Your scratch sheet.**
 
-A throwaway scratchpad for math notes — open a room, type TeX like Vim, and watch KaTeX render as you go. Share the link; everyone edits the same buffer in realtime. Ask `@ai` to rewrite an equation and the whole room sees the change.
+A keyboard-first math scratchpad — open the app, type TeX on a blank sheet, and watch KaTeX render in place as you work. No separate math mode, no preview pane required. Share a room link when you want to collaborate; export when you are done.
 
-No accounts. No save button. Refresh clears the slate.
+Your sheet autosaves locally per room. Refresh restores it. **New** starts a fresh room without erasing older sheets.
 
 ---
 
@@ -16,7 +16,7 @@ npm run build
 npm start
 ```
 
-Open **[http://localhost:3001](http://localhost:3001)**. You’ll land in a room (`?room=…`). Hit **Share**, send the URL, and you’re co-editing.
+Open **[http://localhost:3001](http://localhost:3001)**. You land on a blank sheet (`?room=…`). Type immediately.
 
 For local development (same custom server + Yjs WebSocket):
 
@@ -35,17 +35,18 @@ Open the printed `https://*.trycloudflare.com` link on two devices with the same
 
 ---
 
-## What you get
+## How it works
 
 | | |
 |---|---|
-| **Vim editor** | CodeMirror 6 + Replit Vim — motions, modes, the works |
-| **LaTeX as you type** | KaTeX preview; autocomplete for common commands |
-| **Realtime collab** | Yjs over WebSocket — shared doc, carets, peer count |
-| **Room chat** | Sidebar for humans; `@ai` / `@vimtex` for model edits |
-| **Two layouts** | Split (source + preview) or Realtime (full-width + inline math) |
+| **One surface** | Type prose and math in the same editor — rendered math stays on the line |
+| **Caret reveals source** | Move the cursor into math to edit the raw TeX; move away to see KaTeX |
+| **Inline by default** | Bare commands like `\frac{1}{2}` render inline; use `\[...\]` for display math |
+| **Vim editor** | CodeMirror 6 + Replit Vim — motions, modes, Tab/Enter to hop `\frac{}{}` fields |
+| **Local autosave** | Each room restores after refresh; **New** opens a clean sheet in a new room |
+| **Optional tools** | **Preview** (rendered export view), **Share**, **Chat**, `.tex` / `.md` export |
 
-Type TeX directly — no `$` required for bare commands. Use `\(...\)` for inline and `\[...\]` for display when you want them.
+Use `\(...\)` when you need explicit inline boundaries in prose. Use `\[...\]` when you want a displayed equation. No `$` delimiters.
 
 ---
 
@@ -76,4 +77,4 @@ Next.js · CodeMirror 6 · Yjs · KaTeX · OpenRouter
 
 ## License
 
-Private / experimental — use at your own risk. Ephemeral by design: don’t store secrets in the buffer.
+Private / experimental — use at your own risk. Do not store secrets in the buffer.

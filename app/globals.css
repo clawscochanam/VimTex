@@ -759,22 +759,28 @@ body {
 
 /* Inline KaTeX widgets inside the editor */
 .cm-math-widget {
-  display: inline-block;
-  vertical-align: middle;
+  display: inline;
+  vertical-align: baseline;
   color: var(--ink);
-  padding: 0 2px;
+  padding: 0 1px;
+  line-height: inherit;
 }
 
 .cm-math-widget.cm-math-display {
   display: block;
-  text-align: center;
-  margin: 8px 0;
-  padding: 4px 0;
+  text-align: left;
+  margin: 0.5em 0;
+  padding: 0;
 }
 
 .cm-math-widget .katex {
-  font-size: 1.05em;
+  font-size: 1em;
   color: var(--ink);
+}
+
+.cm-math-widget .katex-display {
+  margin: 0;
+  text-align: left;
 }
 
 .cm-math-widget.cm-math-error {
